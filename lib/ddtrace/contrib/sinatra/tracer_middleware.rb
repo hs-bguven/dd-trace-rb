@@ -8,8 +8,12 @@ module Datadog
     module Sinatra
       # Middleware used for automatically tagging configured headers and handle request span
       class TracerMiddleware
-        def initialize(app)
+        # Placeholder resource, so we can augment span with route information if route does not match
+        PLACEHOLDER_RESOURCE = 'PLACEHOLDER'.freeze
+
+        def initialize(app, app_instance:)
           @app = app
+          @app_instance = app_instance
         end
 
         def call(env)
@@ -19,35 +23,36 @@ module Datadog
             tracer.provider.context = context if context.trace_id
           end
 
-          Sinatra::Env.set_middleware_start_time(env)
+          tracer.trace(
+            Ext::SPAN_REQUEST,
+            service: configuration[:service_name],
+            span_type: Datadog::Ext::HTTP::TYPE_INBOUND,
+            resource: PLACEHOLDER_RESOURCE,
+          ) do |span|
+            begin
+              Sinatra::Env.set_datadog_span(env, @app_instance, span)
 
-          # Run application stack
-          response = @app.call(env)
-        ensure
-          # Augment current Sinatra middleware span if we are the top-most Sinatra app on the Rack stack.
-          span = Sinatra::Env.datadog_span(env)
-          if span
-            Sinatra::Env.request_header_tags(env, configuration[:headers][:request]).each do |name, value|
-              span.set_tag(name, value) if span.get_tag(name).nil?
-            end
-
-            if response && (headers = response[1])
-              Sinatra::Headers.response_header_tags(headers, configuration[:headers][:response]).each do |name, value|
+              response = @app.call(env)
+            ensure
+              Sinatra::Env.request_header_tags(env, configuration[:headers][:request]).each do |name, value|
                 span.set_tag(name, value) if span.get_tag(name).nil?
               end
+
+              span.set_tag(Ext::TAG_APP_NAME, @app_instance.settings.name)
+              span.resource = env['sinatra.route'.freeze] if span.resource == PLACEHOLDER_RESOURCE
+
+              if response && (headers = response[1])
+                Sinatra::Headers.response_header_tags(headers, configuration[:headers][:response]).each do |name, value|
+                  span.set_tag(name, value) if span.get_tag(name).nil?
+                end
+              end
+
+              # Set analytics sample rate
+              Contrib::Analytics.set_sample_rate(span, analytics_sample_rate) if analytics_enabled?
+
+              # Measure service stats
+              Contrib::Analytics.set_measured(span)
             end
-
-            # Set analytics sample rate
-            Contrib::Analytics.set_sample_rate(span, analytics_sample_rate) if analytics_enabled?
-
-            # Measure service stats
-            Contrib::Analytics.set_measured(span)
-
-            span.finish
-
-            # Remove span from env, so other Sinatra apps mounted on this same
-            # Rack stack do not modify it with their own information.
-            Sinatra::Env.set_datadog_span(env, nil)
           end
         end
 

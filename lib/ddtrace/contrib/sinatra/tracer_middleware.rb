@@ -35,6 +35,8 @@ module Datadog
               response = @app.call(env)
             ensure
               Sinatra::Env.request_header_tags(env, configuration[:headers][:request]).each do |name, value|
+                pp 'set request header'
+                pp name, value
                 span.set_tag(name, value) if span.get_tag(name).nil?
               end
 
@@ -43,6 +45,8 @@ module Datadog
 
               if response && (headers = response[1])
                 Sinatra::Headers.response_header_tags(headers, configuration[:headers][:response]).each do |name, value|
+                  pp 'set response header'
+                  pp name, value
                   span.set_tag(name, value) if span.get_tag(name).nil?
                 end
               end

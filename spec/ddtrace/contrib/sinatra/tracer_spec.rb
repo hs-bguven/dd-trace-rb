@@ -137,7 +137,7 @@ RSpec.describe 'Sinatra instrumentation' do
           context 'which sets X-Request-Id on the response' do
             it do
               subject
-              expect(span.get_tag('http.response.headers.test_header')).to eq('response id')
+              expect(span.get_tag('http.response.headers.x_request_id')).to eq('test id')
             end
           end
         end
@@ -157,6 +157,7 @@ RSpec.describe 'Sinatra instrumentation' do
           subject(:response) { get '/wildcard/1/2/3' }
 
           it do
+            print_trace spans
             is_expected.to be_ok
             # expect(spans).to have(2 + nested_span_count).items
             expect(span.resource).to eq('GET /wildcard/*')
@@ -443,7 +444,7 @@ RSpec.describe 'Sinatra instrumentation' do
   let(:sinatra_routes) do
     lambda do
       get '/' do
-        headers['Test-Header'] = 'response id'
+        headers['X-Request-ID'] = 'test id'
         'ok'
       end
 
@@ -588,7 +589,7 @@ end
 
 
 def print_trace(spans, *roots)
-  roots ||= spans.select { |s| s.parent_id == 0 }
+  roots ||= spans.select { |s| !s.parent }
 
   return STDERR.puts "No root!" if roots.empty?
 

@@ -8,8 +8,8 @@ module Datadog
     module Sinatra
       # Middleware used for automatically tagging configured headers and handle request span
       class TracerMiddleware
-        # Placeholder resource, so we can augment span with route information if route does not match
-        PLACEHOLDER_RESOURCE = 'PLACEHOLDER'.freeze
+        # Span resource when the application does not have the matching route
+        NO_ROUTE_RESOURCE = 'no route'.freeze
 
         def initialize(app, app_instance:)
           @app = app
@@ -27,7 +27,7 @@ module Datadog
             Ext::SPAN_REQUEST,
             service: configuration[:service_name],
             span_type: Datadog::Ext::HTTP::TYPE_INBOUND,
-            resource: PLACEHOLDER_RESOURCE,
+            resource: NO_ROUTE_RESOURCE,
           ) do |span|
             begin
               Sinatra::Env.set_datadog_span(env, @app_instance, span)
@@ -41,9 +41,10 @@ module Datadog
               end
 
               span.set_tag(Ext::TAG_APP_NAME, @app_instance.settings.name)
-              span.resource = env['sinatra.route'.freeze] if span.resource == PLACEHOLDER_RESOURCE
+              # span.resource = env['sinatra.route'.freeze] if span.resource == PLACEHOLDER_RESOURCE
 
               if response && (headers = response[1])
+                pp "target: #{configuration[:headers][:response]}"
                 Sinatra::Headers.response_header_tags(headers, configuration[:headers][:response]).each do |name, value|
                   pp 'set response header'
                   pp name, value
@@ -85,3 +86,26 @@ module Datadog
     end
   end
 end
+
+
+
+
+<<-HEREDOC
+sinatra.request(Root, "GET /wildcard/*")
+sinatra.request(Nest, "GET /wildcard/*")
+sinatra.route  (Nest, "GET /wildcard/*")
+
+sinatra.request(Root, "GET /wildcard/*")
+sinatra.request(Nest, "GET /wildcard/*")
+sinatra.route  (Root, "GET /wildcard/*")
+
+sinatra.request(Root, "GET /wildcard/*")
+sinatra.request(Nest, "no route")
+sinatra.route  (Root, "GET /wildcard/*")
+
+sinatra.request(Root, "no route")
+sinatra.request(Nest, "GET /wildcard/*")
+sinatra.route  (Root, "GET /wildcard/*")
+
+
+HEREDOC

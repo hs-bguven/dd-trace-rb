@@ -64,7 +64,7 @@ RSpec.describe 'Sinatra instrumentation' do
 
           subject(:response) { get url }
 
-          # let(:top_level_span) { defined?(super) ? super() : rack_span }
+          # let(:top_span) { defined?(super) ? super() : rack_span }
 
           context 'on matching app' do
             before { skip if opts[:matching_app] == false }
@@ -93,7 +93,7 @@ RSpec.describe 'Sinatra instrumentation' do
           context 'which sets X-Request-Id on the response' do
             it do
               subject
-              skip("not matching app span") unless span.get_tag(Datadog::Contrib::Sinatra::Ext::TAG_ROUTE_PATH)
+              skip('not matching app span') unless span.get_tag(Datadog::Contrib::Sinatra::Ext::TAG_ROUTE_PATH)
               expect(span.get_tag('http.response.headers.x_request_id')).to eq('test id')
             end
           end
@@ -113,7 +113,7 @@ RSpec.describe 'Sinatra instrumentation' do
         context 'and a request to a wildcard route is made' do
           subject(:response) { get '/wildcard/1/2/3' }
 
-          let(:matching_app?) { span.get_tag(Datadog::Contrib::Sinatra::Ext::TAG_APP_NAME) == top_level_app_name }
+          let(:matching_app?) { span.get_tag(Datadog::Contrib::Sinatra::Ext::TAG_APP_NAME) == top_app_name }
 
           context 'with matching app' do
             before do
@@ -471,7 +471,7 @@ RSpec.describe 'Sinatra instrumentation' do
     end
 
     let(:app_name) { 'Sinatra::Application' }
-    let(:top_level_app_name) { app_name }
+    let(:top_app_name) { app_name }
 
     include_examples 'sinatra examples'
   end
@@ -497,20 +497,20 @@ RSpec.describe 'Sinatra instrumentation' do
       end)
     end
 
-    let(:app_name) { top_level_app_name }
-    let(:top_level_app_name) { 'App' }
+    let(:app_name) { top_app_name }
+    let(:top_app_name) { 'App' }
     let(:mount_nested_app) { false }
 
     include_examples 'sinatra examples'
 
     context 'with nested app' do
       let(:mount_nested_app) { true }
-      let(:top_level_span) { spans.find { |x| x.get_tag(Datadog::Contrib::Sinatra::Ext::TAG_APP_NAME) == top_level_app_name } }
+      let(:top_span) { spans.find { |x| x.get_tag(Datadog::Contrib::Sinatra::Ext::TAG_APP_NAME) == top_app_name } }
       let(:nested_span) { spans.find { |x| x.get_tag(Datadog::Contrib::Sinatra::Ext::TAG_APP_NAME) == nested_app_name } }
       let(:nested_app_name) { 'NestedApp' }
 
       context 'making request to top level app' do
-        let(:span) { top_level_span }
+        let(:span) { top_span }
 
         include_examples 'sinatra examples'
         include_examples 'header tags'
@@ -522,8 +522,8 @@ RSpec.describe 'Sinatra instrumentation' do
         let(:url) { '/nested' }
 
         context 'asserting the parent span' do
-          let(:app_name) { top_level_app_name }
-          let(:span) { top_level_span }
+          let(:app_name) { top_app_name }
+          let(:span) { top_span }
 
           include_examples 'sinatra examples', matching_app: false
           include_examples 'header tags'
@@ -538,8 +538,8 @@ RSpec.describe 'Sinatra instrumentation' do
               is_expected.to be_ok
               expect(spans).to have(3).items
 
-              expect(top_level_span).to be_request_span resource: 'GET', app_name: top_level_app_name, matching_app: false
-              expect(span).to be_request_span parent: top_level_span
+              expect(top_span).to be_request_span resource: 'GET', app_name: top_app_name, matching_app: false
+              expect(span).to be_request_span parent: top_span
               expect(route_span).to be_route_span parent: span
             end
 
@@ -556,8 +556,8 @@ RSpec.describe 'Sinatra instrumentation' do
                 is_expected.to be_not_found
                 expect(spans).to have(2).items
 
-                expect(top_level_span).to be_request_span app_name: top_level_app_name
-                expect(span).to be_request_span parent: top_level_span
+                expect(top_span).to be_request_span app_name: top_app_name
+                expect(span).to be_request_span parent: top_span
               end
             end
           end
@@ -569,8 +569,8 @@ RSpec.describe 'Sinatra instrumentation' do
               is_expected.to be_ok
               expect(spans).to have(4).items
 
-              expect(top_level_span).to be_request_span parent: rack_span, app_name: top_level_app_name
-              expect(span).to be_request_span parent: top_level_span
+              expect(top_span).to be_request_span parent: rack_span, app_name: top_app_name
+              expect(span).to be_request_span parent: top_span
               expect(route_span).to be_route_span parent: span
               expect(rack_span.resource).to eq(resource)
             end
@@ -581,6 +581,7 @@ RSpec.describe 'Sinatra instrumentation' do
   end
 
   RSpec::Matchers.define :be_request_span do |opts = {}|
+    # rubocop:disable Style/RedundantSelf
     match(notify_expectation_failures: true) do |span|
       app_name = opts[:app_name] || self.app_name
       expect(span.service).to eq(Datadog::Contrib::Sinatra::Ext::SERVICE_NAME)

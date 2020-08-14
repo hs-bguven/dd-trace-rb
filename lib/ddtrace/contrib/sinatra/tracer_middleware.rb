@@ -16,13 +16,14 @@ module Datadog
           @app_instance = app_instance
         end
 
+        # rubocop:disable Metrics/AbcSize
+        # rubocop:disable Metrics/MethodLength
         def call(env)
           # Set the trace context (e.g. distributed tracing)
           if configuration[:distributed_tracing] && tracer.provider.context.trace_id.nil?
             context = HTTPPropagator.extract(env)
             tracer.provider.context = context if context.trace_id
           end
-          ::Sinatra
 
           tracer.trace(
             Ext::SPAN_REQUEST,
@@ -48,9 +49,13 @@ module Datadog
 
               span.set_tag(Ext::TAG_APP_NAME, @app_instance.settings.name)
 
+              # TODO: This backfills the non-matching Sinatra app with a "#{method} #{path}"
+              # TODO: resource name. This shouldn't be the case, as that app has never handled
+              # TODO: the response with that resource.
+              # TODO: We should replace this backfill code with a clear `resource` that signals
+              # TODO: that this Sinatra span was *not* responsible for processing the current request.
               rack_request_span = env[Datadog::Contrib::Rack::TraceMiddleware::RACK_REQUEST_SPAN]
               span.resource = rack_request_span.resource if rack_request_span && rack_request_span.resource
-              # span.resource = env['sinatra.route'.freeze] if span.resource == PLACEHOLDER_RESOURCE
 
               if response
                 if (status = response[0])

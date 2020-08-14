@@ -22,12 +22,13 @@ module Datadog
             context = HTTPPropagator.extract(env)
             tracer.provider.context = context if context.trace_id
           end
+          ::Sinatra
 
           tracer.trace(
             Ext::SPAN_REQUEST,
             service: configuration[:service_name],
             span_type: Datadog::Ext::HTTP::TYPE_INBOUND,
-            resource: "#{env['RESPONSE_MIDDLEWARE']}##{env['REQUEST_METHOD']}"
+            resource: env['REQUEST_METHOD']
           ) do |span|
             begin
               Sinatra::Env.set_datadog_span(env, @app_instance, span)
@@ -35,9 +36,14 @@ module Datadog
               response = @app.call(env)
             ensure
               Sinatra::Env.request_header_tags(env, configuration[:headers][:request]).each do |name, value|
-                pp 'set request header'
-                pp name, value
                 span.set_tag(name, value) if span.get_tag(name).nil?
+              end
+
+              request = ::Sinatra::Request.new(env)
+              span.set_tag(Datadog::Ext::HTTP::URL, request.path)
+              span.set_tag(Datadog::Ext::HTTP::METHOD, request.request_method)
+              if request.script_name && !request.script_name.empty?
+                span.set_tag(Ext::TAG_SCRIPT_NAME, request.script_name)
               end
 
               span.set_tag(Ext::TAG_APP_NAME, @app_instance.settings.name)
@@ -46,14 +52,18 @@ module Datadog
               span.resource = rack_request_span.resource if rack_request_span && rack_request_span.resource
               # span.resource = env['sinatra.route'.freeze] if span.resource == PLACEHOLDER_RESOURCE
 
-              if response && (headers = response[1])
-                # pp "target: #{configuration[:headers][:response]}"
-                Sinatra::Headers.response_header_tags(headers, configuration[:headers][:response]).each do |name, value|
-                  # pp 'set response header'
-                  # pp name, value
-                  # pp headers
-                  # pp '---------------------'
-                  span.set_tag(name, value) if span.get_tag(name).nil?
+              if response
+                if (status = response[0])
+                  sinatra_response = ::Sinatra::Response.new(nil, status)
+
+                  span.set_tag(Datadog::Ext::HTTP::STATUS_CODE, sinatra_response.status)
+                  span.set_error(env['sinatra.error']) if sinatra_response.server_error?
+                end
+
+                if (headers = response[1])
+                  Sinatra::Headers.response_header_tags(headers, configuration[:headers][:response]).each do |name, value|
+                    span.set_tag(name, value) if span.get_tag(name).nil?
+                  end
                 end
               end
 
@@ -62,8 +72,6 @@ module Datadog
 
               # Measure service stats
               Contrib::Analytics.set_measured(span)
-
-              pp "span middleware: #{span.to_hash}"
             end
           end
         end
@@ -93,8 +101,6 @@ module Datadog
     end
   end
 end
-
-
 
 
 <<-HEREDOC

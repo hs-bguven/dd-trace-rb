@@ -19,7 +19,6 @@ module Datadog
           # Keep track of the route name when the app is instantiated for an
           # incoming request.
           condition do
-            puts "route set!"
             # If the option to prepend script names is enabled, then
             # prepend the script name from the request onto the action.
             #
@@ -62,7 +61,7 @@ module Datadog
             # TODO: be a Sinatra app itself) or it might just 404 if not handled at all.
             # TODO:
             # TODO: A possible value for `resource` could set a high level description, e.g.
-            # TODO: `request.request_method`.
+            # TODO: `request.request_method`, given we don't have the response object available yet.
             route = if defined?(@datadog_route)
                       @datadog_route
                     else
@@ -71,18 +70,7 @@ module Datadog
                     end
 
             span.resource = "#{request.request_method} #{route}"
-
-            span.set_tag(Datadog::Ext::HTTP::URL, request.path)
-            span.set_tag(Datadog::Ext::HTTP::METHOD, request.request_method)
             span.set_tag(Ext::TAG_ROUTE_PATH, route)
-            if request.script_name && !request.script_name.empty?
-              span.set_tag(Ext::TAG_SCRIPT_NAME, request.script_name)
-            end
-
-            span.set_tag(Datadog::Ext::HTTP::STATUS_CODE, response.status)
-            span.set_error(env['sinatra.error']) if response.server_error?
-
-            pp "span after: #{app.settings.name} #{@datadog_route}:#{route} #{span.to_hash}"
           end
         end
 

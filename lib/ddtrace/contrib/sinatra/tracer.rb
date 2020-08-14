@@ -19,6 +19,7 @@ module Datadog
           # Keep track of the route name when the app is instantiated for an
           # incoming request.
           condition do
+            puts "route set!"
             # If the option to prepend script names is enabled, then
             # prepend the script name from the request onto the action.
             #
@@ -62,6 +63,8 @@ module Datadog
 
             span.set_tag(Datadog::Ext::HTTP::STATUS_CODE, response.status)
             span.set_error(env['sinatra.error']) if response.server_error?
+
+            pp "span after: #{app.settings.name} #{@datadog_route}:#{route} #{span.to_hash}"
           end
         end
 

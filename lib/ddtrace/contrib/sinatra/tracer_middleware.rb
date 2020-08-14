@@ -9,7 +9,7 @@ module Datadog
       # Middleware used for automatically tagging configured headers and handle request span
       class TracerMiddleware
         # Span resource when the application does not have the matching route
-        NO_ROUTE_RESOURCE = 'no route'.freeze
+        # NO_ROUTE_RESOURCE = 'no route'.freeze
 
         def initialize(app, app_instance:)
           @app = app
@@ -27,7 +27,6 @@ module Datadog
             Ext::SPAN_REQUEST,
             service: configuration[:service_name],
             span_type: Datadog::Ext::HTTP::TYPE_INBOUND,
-            resource: NO_ROUTE_RESOURCE,
           ) do |span|
             begin
               Sinatra::Env.set_datadog_span(env, @app_instance, span)
@@ -41,14 +40,18 @@ module Datadog
               end
 
               span.set_tag(Ext::TAG_APP_NAME, @app_instance.settings.name)
-              TODO copy resource from rack.request.resource
+
+              rack_request_span = env[Datadog::Contrib::Rack::TraceMiddleware::RACK_REQUEST_SPAN]
+              span.resource = rack_request_span.resource if rack_request_span && rack_request_span.resource
               # span.resource = env['sinatra.route'.freeze] if span.resource == PLACEHOLDER_RESOURCE
 
               if response && (headers = response[1])
-                pp "target: #{configuration[:headers][:response]}"
+                # pp "target: #{configuration[:headers][:response]}"
                 Sinatra::Headers.response_header_tags(headers, configuration[:headers][:response]).each do |name, value|
-                  pp 'set response header'
-                  pp name, value
+                  # pp 'set response header'
+                  # pp name, value
+                  # pp headers
+                  # pp '---------------------'
                   span.set_tag(name, value) if span.get_tag(name).nil?
                 end
               end
@@ -58,6 +61,8 @@ module Datadog
 
               # Measure service stats
               Contrib::Analytics.set_measured(span)
+
+              pp "span middleware: #{span.to_hash}"
             end
           end
         end

@@ -45,6 +45,24 @@ module Datadog
 
             span = Sinatra::Env.datadog_span(env, app)
 
+            # TODO: `route` should *only* be populated if @datadog_route is defined.
+            # TODO: If @datadog_route is not defined, then this Sinatra app is not responsible
+            # TODO: for handling this request.
+            # TODO:
+            # TODO: This change would be BREAKING for any Sinatra app (classic or modular),
+            # TODO: as it affects the `resource` value for requests not handled by the Sinatra app.
+            # TODO: Currently we use "#{method} #{path}" in such aces, but `path` is the raw,
+            # TODO: high-cardinality HTTP path, and can contain PII.
+            # TODO:
+            # TODO: The value we should use as the `resource` when the Sinatra app is not
+            # TODO: responsible for the request is a tricky subject.
+            # TODO: The best option is a value that clearly communicates that this app did not
+            # TODO: handle this request. It's important to keep in mind that an unhandled request
+            # TODO: by this Sinatra app might still be handled by another Rack middleware (which can
+            # TODO: be a Sinatra app itself) or it might just 404 if not handled at all.
+            # TODO:
+            # TODO: A possible value for `resource` could set a high level description, e.g.
+            # TODO: `request.request_method`.
             route = if defined?(@datadog_route)
                       @datadog_route
                     else

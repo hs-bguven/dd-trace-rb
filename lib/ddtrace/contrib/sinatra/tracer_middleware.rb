@@ -27,6 +27,7 @@ module Datadog
             Ext::SPAN_REQUEST,
             service: configuration[:service_name],
             span_type: Datadog::Ext::HTTP::TYPE_INBOUND,
+            resource: "#{env['RESPONSE_MIDDLEWARE']}##{env['REQUEST_METHOD']}"
           ) do |span|
             begin
               Sinatra::Env.set_datadog_span(env, @app_instance, span)

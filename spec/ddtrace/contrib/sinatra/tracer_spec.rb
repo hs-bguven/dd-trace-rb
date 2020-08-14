@@ -157,13 +157,41 @@ RSpec.describe 'Sinatra instrumentation' do
         context 'and a request to a wildcard route is made' do
           subject(:response) { get '/wildcard/1/2/3' }
 
-          it do
-            is_expected.to be_ok
-            print_trace spans
-            # expect(spans).to have(2 + nested_span_count).items
-            expect(span.resource).to eq('GET /wildcard/*')
-            expect(span.get_tag(Datadog::Ext::HTTP::URL)).to eq('/wildcard/1/2/3')
-            expect(span.get_tag(Datadog::Contrib::Sinatra::Ext::TAG_ROUTE_PATH)).to eq('/wildcard/*')
+          let(:matching_app?) { span.get_tag(Datadog::Contrib::Sinatra::Ext::TAG_APP_NAME) == top_level_app_name }
+
+          context 'with matching app' do
+            before do
+              subject
+              skip unless matching_app?
+            end
+
+            it do
+              is_expected.to be_ok
+              print_trace spans
+              # expect(spans).to have(2 + nested_span_count).items
+              expect(span.resource).to eq('GET /wildcard/*')
+              expect(span.get_tag(Datadog::Ext::HTTP::URL)).to eq('/wildcard/1/2/3')
+              expect(span.get_tag(Datadog::Contrib::Sinatra::Ext::TAG_ROUTE_PATH)).to eq('/wildcard/*')
+            end
+          end
+
+          context 'with non-matching app' do
+            before do
+              subject
+              skip unless matching_app?
+            end
+
+            it '[TODO:legacy] sets high-cardinality path as resource for non-matching app' do
+              is_expected.to be_ok
+              skip if matching_app?
+              expect(span.resource).to eq('GET /wildcard/1/2/3')
+            end
+
+            xit '[TODO:enabled] sets resource for non-matching app' do
+              is_expected.to be_ok
+              skip if matching_app?
+              expect(span.resource).to eq('GET')
+            end
           end
         end
 
@@ -484,6 +512,7 @@ RSpec.describe 'Sinatra instrumentation' do
     end
 
     let(:app_name) { 'Sinatra::Application' }
+    let(:top_level_app_name) { app_name }
 
     include_examples 'sinatra examples'
   end

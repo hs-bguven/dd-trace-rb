@@ -101,24 +101,3 @@ module Datadog
     end
   end
 end
-
-
-<<-HEREDOC
-sinatra.request(Root, "GET /wildcard/*")
-sinatra.request(Nest, "GET /wildcard/*")
-sinatra.route  (Nest, "GET /wildcard/*")
-
-sinatra.request(Root, "GET /wildcard/*")
-sinatra.request(Nest, "GET /wildcard/*")
-sinatra.route  (Root, "GET /wildcard/*")
-
-sinatra.request(Root, "GET /wildcard/*")
-sinatra.request(Nest, "no route")
-sinatra.route  (Root, "GET /wildcard/*")
-
-sinatra.request(Root, "no route")
-sinatra.request(Nest, "GET /wildcard/*")
-sinatra.route  (Root, "GET /wildcard/*")
-
-
-HEREDOC

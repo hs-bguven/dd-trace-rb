@@ -104,7 +104,6 @@ RSpec.describe 'Sinatra instrumentation' do
 
           it do
             is_expected.to be_ok
-            # expect(spans).to have(2 + nested_span_count).items
             expect(span.resource).to eq('GET /')
             expect(span.get_tag(Datadog::Ext::HTTP::URL)).to eq('/')
           end
@@ -151,19 +150,6 @@ RSpec.describe 'Sinatra instrumentation' do
 
         context 'and a request to a template route is made' do
           subject(:response) { get '/erb' }
-
-          # BAD?
-          # let(:root_span) { spans[-5] }
-          # let(:request_span) { spans[-2] }
-          # let(:route_span) { spans[-1] }
-          # let(:template_parent_span) { spans[-4] }
-          # let(:template_child_span) { spans[-3] }
-
-          # let(:root_span) { spans[-3] }
-          # let(:request_span) { spans[-2] }
-          # let(:route_span) { spans[-1] }
-          # let(:template_parent_span) { spans[-5] }
-          # let(:template_child_span) { spans[-4] }
 
           let(:root_span) { request_span.parent }
           let(:request_span) { route_span.parent }
@@ -264,7 +250,6 @@ RSpec.describe 'Sinatra instrumentation' do
 
           it do
             is_expected.to be_bad_request
-            # expect(spans).to have(2 + nested_span_count).items
             expect(span).to_not have_error
           end
         end

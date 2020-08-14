@@ -41,6 +41,7 @@ module Datadog
               end
 
               span.set_tag(Ext::TAG_APP_NAME, @app_instance.settings.name)
+              TODO copy resource from rack.request.resource
               # span.resource = env['sinatra.route'.freeze] if span.resource == PLACEHOLDER_RESOURCE
 
               if response && (headers = response[1])
